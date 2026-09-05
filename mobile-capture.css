@@ -37,6 +37,11 @@ svg { width: 20px; height: 20px; stroke-width: 1.8; }
 .field > span, .capture-toolbar > span, .section-heading span { color: var(--muted); font-size: 12px; font-weight: 600; }
 .field input, .field select { width: 100%; height: 46px; padding: 0 12px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; outline: none; }
 .field input:focus, .field select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(23,107,77,.1); }
+.student-picker { display: grid; gap: 10px; }
+.student-search { position: relative; display: block; color: var(--ink); font-size: 16px; font-weight: 400; }
+.student-search > svg { position: absolute; left: 12px; top: 50%; width: 18px; height: 18px; color: var(--muted); transform: translateY(-50%); pointer-events: none; }
+.field .student-search input { padding-left: 40px; }
+.field input:disabled, .field select:disabled { color: #8a9690; background: #edf0ee; }
 .session-meta { min-height: 30px; margin-top: 10px; display: flex; gap: 18px; align-items: center; color: var(--muted); font-size: 12px; }
 .session-meta b { color: var(--ink); font-size: 15px; }
 .section-heading { min-height: 42px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }

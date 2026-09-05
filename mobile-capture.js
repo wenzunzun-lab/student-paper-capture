@@ -7,6 +7,7 @@ let data = loadData();
 let pending = new Map();
 let previews = new Map();
 let activePage = 1;
+const studentSearchCache = new Map();
 
 function loadData() {
   try {
@@ -31,6 +32,29 @@ function student() { return data.roster.find(s => s.id === document.getElementBy
 function examRows() { const exam = examName(); return data.submissions.filter(row => row.examName === exam); }
 function icons() { if (window.lucide) lucide.createIcons(); }
 function toast(message) { const el = document.getElementById("toast"); el.textContent = message; el.classList.add("show"); clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.remove("show"), 2500); }
+
+function normalizedSearch(value) { return String(value || "").toLowerCase().replace(/\s+/g, ""); }
+
+function studentSearchKey(row) {
+  const cached = studentSearchCache.get(row.id);
+  if (cached?.name === row.name) return cached.key;
+  let fullPinyin = ""; let initials = "";
+  try {
+    const syllables = window.pinyinPro?.pinyin(row.name, { toneType:"none", type:"array", nonZh:"consecutive" });
+    if (Array.isArray(syllables)) {
+      fullPinyin = syllables.join("");
+      initials = syllables.map(part => String(part).charAt(0)).join("");
+    }
+  } catch (_) {}
+  const key = [row.id, row.name, fullPinyin, initials].map(normalizedSearch).join("|");
+  studentSearchCache.set(row.id, { name:row.name, key });
+  return key;
+}
+
+function matchingStudents() {
+  const query = normalizedSearch(document.getElementById("studentSearch").value);
+  return query ? data.roster.filter(row => studentSearchKey(row).includes(query)) : data.roster;
+}
 
 function openDb() {
   return new Promise((resolve, reject) => {
@@ -98,17 +122,27 @@ async function importRoster(file) {
   try {
     const roster = parseRoster(await rosterRows(file));
     if (!roster.length) throw new Error("没有识别到学号和姓名");
-    data.roster = roster; persist(); renderRoster(); toast(`已载入 ${roster.length} 名学生`);
+    data.roster = roster; persist(); document.getElementById("studentSearch").value = ""; renderRoster(); toast(`已载入 ${roster.length} 名学生`);
   } catch (error) { toast(error.message || "花名册读取失败"); }
 }
 
 function renderRoster(preferred = "") {
-  const select = document.getElementById("studentSelect");
+  const search = document.getElementById("studentSearch");
   data.roster.sort((a,b) => a.id.localeCompare(b.id, "zh-CN", { numeric:true }));
-  select.disabled = !data.roster.length;
-  select.innerHTML = data.roster.length ? data.roster.map(s => `<option value="${esc(s.id)}">${esc(s.id)} · ${esc(s.name)}</option>`).join("") : '<option value="">请先上传花名册</option>';
-  if (preferred && data.roster.some(s => s.id === preferred)) select.value = preferred;
+  studentSearchCache.clear();
+  search.disabled = !data.roster.length;
+  renderStudentOptions(preferred);
   document.getElementById("nextStudentButton").disabled = !data.roster.length;
+}
+
+function renderStudentOptions(preferred = "") {
+  const select = document.getElementById("studentSelect");
+  const rows = matchingStudents();
+  const hasRoster = data.roster.length > 0;
+  select.disabled = !rows.length;
+  select.innerHTML = rows.length ? rows.map(s => `<option value="${esc(s.id)}">${esc(s.id)} · ${esc(s.name)}</option>`).join("") : `<option value="">${hasRoster ? "没有匹配的学生" : "请先上传花名册"}</option>`;
+  if (preferred && rows.some(s => s.id === preferred)) select.value = preferred;
+  document.getElementById("studentMatchLabel").textContent = hasRoster ? `匹配学生（${rows.length}）` : "选择学生";
   render();
 }
 
@@ -138,7 +172,8 @@ function renderQueue() {
 function render() {
   const current = student();
   document.getElementById("rosterCount").textContent = data.roster.length;
-  document.getElementById("studentName").textContent = current ? `${current.name}${current.className ? ` · ${current.className}` : ""}` : "请上传花名册";
+  const searching = normalizedSearch(document.getElementById("studentSearch").value);
+  document.getElementById("studentName").textContent = current ? `${current.name}${current.className ? ` · ${current.className}` : ""}` : data.roster.length && searching ? "未找到学生" : "请上传花名册";
   renderPages(); renderQueue(); icons();
 }
 
@@ -190,7 +225,8 @@ function nextStudent() {
   const select = document.getElementById("studentSelect"); const done = new Set(examRows().map(row => row.studentId));
   const index = data.roster.findIndex(s => s.id === select.value);
   const ordered = [...data.roster.slice(index + 1), ...data.roster.slice(0,index + 1)];
-  select.value = (ordered.find(s => !done.has(s.id)) || ordered[0]).id; render();
+  const next = ordered.find(s => !done.has(s.id)) || ordered[0];
+  document.getElementById("studentSearch").value = ""; renderStudentOptions(next.id);
 }
 
 async function saveStudent() {
@@ -251,6 +287,11 @@ function networkStatus() {
 document.getElementById("rosterButton").onclick = () => document.getElementById("rosterInput").click();
 document.getElementById("rosterInput").onchange = event => importRoster(event.target.files[0]);
 document.getElementById("studentSelect").onchange = () => { clearPending(); render(); };
+document.getElementById("studentSearch").oninput = () => {
+  const before = document.getElementById("studentSelect").value;
+  renderStudentOptions(before);
+  if (document.getElementById("studentSelect").value !== before) clearPending();
+};
 document.getElementById("examName").oninput = event => { data.examName = event.target.value; persist(); render(); };
 document.getElementById("nextStudentButton").onclick = () => { clearPending(); nextStudent(); };
 document.querySelectorAll('input[name="pageCount"]').forEach(input => input.onchange = () => { data.pageCount = pageCount(); persist(); renderPages(); });

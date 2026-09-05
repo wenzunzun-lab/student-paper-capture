@@ -1,8 +1,9 @@
-const CACHE_NAME = "answer-capture-v3";
+const CACHE_NAME = "answer-capture-v4";
 const APP_SHELL = [
   "./mobile-capture.html",
-  "./mobile-capture.css?v=20260905-v2",
-  "./mobile-capture.js?v=20260905-v3",
+  "./mobile-capture.css?v=20260905-v4",
+  "./pinyin-pro.js?v=3.29.3",
+  "./mobile-capture.js?v=20260905-v4",
   "./mobile-manifest.webmanifest"
 ];
 const OPTIONAL_ASSETS = [
