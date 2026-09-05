@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#176b4d" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="答题卡采集" />
+    <title>答题卡采集</title>
+    <link rel="manifest" href="mobile-manifest.webmanifest" />
+    <link rel="stylesheet" href="mobile-capture.css?v=20260905-v2" />
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  </head>
+  <body>
+    <header class="capture-header">
+      <div class="brand"><span class="brand-mark"><i data-lucide="scan-line"></i></span><div><strong>答题卡采集</strong><small id="networkStatus">本机保存</small></div></div>
+      <button class="roster-action" id="rosterButton"><i data-lucide="users-round"></i><span>花名册</span></button>
+    </header>
+
+    <main class="capture-main">
+      <section class="session-band">
+        <label class="field"><span>考试名称</span><input id="examName" autocomplete="off" placeholder="例如：9月物理周测" /></label>
+        <div class="session-meta"><span><b id="rosterCount">0</b> 名学生</span><span><b id="completedCount">0</b> 人已完成</span></div>
+      </section>
+
+      <section class="student-section">
+        <div class="section-heading"><div><span>当前学生</span><strong id="studentName">请上传花名册</strong></div><button class="text-button" id="nextStudentButton" disabled>下一名</button></div>
+        <label class="field"><span>选择学生学号</span><select id="studentSelect" disabled><option value="">请先上传花名册</option></select></label>
+      </section>
+
+      <section class="capture-section">
+        <div class="capture-toolbar">
+          <span>页面数量</span>
+          <div class="segmented" role="radiogroup" aria-label="页面数量">
+            <label><input type="radio" name="pageCount" value="1" /><span>1 页</span></label>
+            <label><input type="radio" name="pageCount" value="2" checked /><span>2 页</span></label>
+          </div>
+        </div>
+        <div class="page-grid" id="pageGrid">
+          <button class="page-slot" data-page="1"><span class="page-number">1</span><i data-lucide="camera"></i><strong>拍第 1 页</strong><img alt="第 1 页预览" /></button>
+          <button class="page-slot" data-page="2"><span class="page-number">2</span><i data-lucide="camera"></i><strong>拍第 2 页</strong><img alt="第 2 页预览" /></button>
+        </div>
+        <input class="visually-hidden" id="cameraInput" type="file" accept="image/*" capture="environment" />
+        <button class="primary-button" id="saveStudentButton" disabled><i data-lucide="folder-check"></i><span>完成当前学生</span></button>
+      </section>
+
+      <section class="queue-section">
+        <div class="section-heading"><div><span>本次队列</span><strong id="queueTitle">尚未采集</strong></div><button class="icon-button" id="resetExportButton" title="重置导出标记"><i data-lucide="rotate-ccw"></i></button></div>
+        <div class="queue-list" id="queueList"></div>
+      </section>
+    </main>
+
+    <footer class="capture-footer">
+      <button class="secondary-button" id="clearQueueButton" disabled><i data-lucide="trash-2"></i><span>清空</span></button>
+      <button class="share-button" id="shareButton" disabled><i data-lucide="share-2"></i><span>分享未导出</span></button>
+    </footer>
+
+    <input class="visually-hidden" id="rosterInput" type="file" accept=".xlsx,.xls,.csv" />
+    <div class="toast" id="toast" role="status"></div>
+    <script src="mobile-capture.js?v=20260905-v3"></script>
+  </body>
+</html>
