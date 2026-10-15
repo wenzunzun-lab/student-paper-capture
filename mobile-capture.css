@@ -65,21 +65,26 @@ svg { width: 20px; height: 20px; stroke-width: 1.8; }
 .page-slot.has-image img { display: block; }
 .page-slot.has-image > svg, .page-slot.has-image > strong { display: none; }
 .page-slot.is-disabled { display: none; }
+.auto-save-hint { margin-top: 12px; text-align: center; color: var(--muted); font-size: 12px; font-weight: 600; }
+.auto-save-hint.is-done { color: var(--green); font-weight: 800; }
+.queue-item.is-done { border-color: #9fc2b2; background: var(--green-soft); }
 .primary-button, .secondary-button, .share-button { height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; font-size: 14px; font-weight: 750; }
 .primary-button { width: 100%; margin-top: 12px; color: white; background: var(--green); border: 1px solid var(--green); }
 .primary-button:disabled { color: #e9eeeb; background: #a8b9b0; border-color: #a8b9b0; }
 
 .queue-list { display: grid; gap: 8px; }
 .queue-empty { min-height: 84px; display: grid; place-items: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; font-size: 13px; }
-.queue-item { min-height: 62px; padding: 10px 10px 10px 12px; display: grid; grid-template-columns: minmax(0,1fr) auto auto; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.queue-item { min-height: 62px; padding: 10px 10px 10px 12px; display: grid; grid-template-columns: minmax(0,1fr) auto auto auto; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
 .queue-item strong, .queue-item small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .queue-item strong { font-size: 14px; }
 .queue-item small { margin-top: 2px; color: var(--muted); font-size: 11px; }
 .page-badge, .export-badge { min-width: 42px; height: 28px; padding: 0 8px; display: grid; place-items: center; border-radius: 6px; font-size: 11px; font-weight: 750; }
 .page-badge { color: var(--green-dark); background: var(--green-soft); }
 .export-badge { color: var(--muted); background: #edf0ee; }
-.queue-delete { width: 34px; height: 34px; display: grid; place-items: center; color: var(--danger); background: transparent; border: 0; border-radius: 6px; }
-.queue-delete svg { width: 17px; }
+.queue-share, .queue-delete { width: 34px; height: 34px; display: grid; place-items: center; background: transparent; border: 0; border-radius: 6px; }
+.queue-share { color: var(--green); }
+.queue-delete { color: var(--danger); }
+.queue-share svg, .queue-delete svg { width: 17px; }
 
 .capture-footer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 9; min-height: 76px; padding: 10px 16px max(10px, env(safe-area-inset-bottom)); display: grid; grid-template-columns: 96px minmax(0,1fr); gap: 10px; background: rgba(255,255,255,.97); border-top: 1px solid var(--line); }
 .secondary-button { color: var(--danger); background: var(--surface); border: 1px solid var(--line); }

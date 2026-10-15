@@ -1,20 +1,17 @@
-const CACHE_NAME = "answer-capture-v4";
+const CACHE_NAME = "answer-capture-v7";
 const APP_SHELL = [
   "./mobile-capture.html",
-  "./mobile-capture.css?v=20260905-v4",
+  "./mobile-capture.css?v=20261015-v6",
   "./pinyin-pro.js?v=3.29.3",
-  "./mobile-capture.js?v=20260905-v4",
-  "./mobile-manifest.webmanifest"
-];
-const OPTIONAL_ASSETS = [
-  "https://unpkg.com/lucide@latest",
-  "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"
+  "./mobile-capture.js?v=20261015-v6",
+  "./mobile-manifest.webmanifest",
+  "./vendor/lucide.min.js",
+  "./vendor/xlsx.full.min.js"
 ];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE_NAME).then(async cache => {
     await cache.addAll(APP_SHELL);
-    await Promise.allSettled(OPTIONAL_ASSETS.map(url => cache.add(url)));
   }));
   self.skipWaiting();
 });

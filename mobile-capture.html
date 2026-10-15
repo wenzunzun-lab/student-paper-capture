@@ -9,9 +9,9 @@
     <meta name="apple-mobile-web-app-title" content="答题卡采集" />
     <title>答题卡采集</title>
     <link rel="manifest" href="mobile-manifest.webmanifest" />
-    <link rel="stylesheet" href="mobile-capture.css?v=20260905-v4" />
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="mobile-capture.css?v=20261015-v6" />
+    <script src="vendor/lucide.min.js"></script>
+    <script src="vendor/xlsx.full.min.js"></script>
   </head>
   <body>
     <header class="capture-header">
@@ -46,7 +46,8 @@
           <button class="page-slot" data-page="2"><span class="page-number">2</span><i data-lucide="camera"></i><strong>拍第 2 页</strong><img alt="第 2 页预览" /></button>
         </div>
         <input class="visually-hidden" id="cameraInput" type="file" accept="image/*" capture="environment" />
-        <button class="primary-button" id="saveStudentButton" disabled><i data-lucide="folder-check"></i><span>完成当前学生</span></button>
+        <div class="auto-save-hint" id="autoSaveHint">拍照即自动保存，无需点确认</div>
+        <button class="primary-button share-current" id="shareCurrentButton" disabled><i data-lucide="share-2"></i><span>分享当前学生（导入扫描王）</span></button>
       </section>
 
       <section class="queue-section">
@@ -63,6 +64,6 @@
     <input class="visually-hidden" id="rosterInput" type="file" accept=".xlsx,.xls,.csv" />
     <div class="toast" id="toast" role="status"></div>
     <script src="pinyin-pro.js?v=3.29.3"></script>
-    <script src="mobile-capture.js?v=20260905-v4"></script>
+    <script src="mobile-capture.js?v=20261015-v6"></script>
   </body>
 </html>

@@ -4,8 +4,7 @@ const DB_NAME = "answerCapturePhotos";
 const DB_STORE = "photos";
 
 let data = loadData();
-let pending = new Map();
-let previews = new Map();
+let previews = new Map(); // photoKey -> objectURL
 let activePage = 1;
 const studentSearchCache = new Map();
 
@@ -30,8 +29,9 @@ function examName() { return document.getElementById("examName").value.trim(); }
 function pageCount() { return Number(document.querySelector('input[name="pageCount"]:checked')?.value) || 2; }
 function student() { return data.roster.find(s => s.id === document.getElementById("studentSelect").value) || null; }
 function examRows() { const exam = examName(); return data.submissions.filter(row => row.examName === exam); }
+function isComplete(row) { const n = row.pageCount || 2; return [...Array(n)].every((_, i) => row.pages.some(p => p.page === i + 1)); }
 function icons() { if (window.lucide) lucide.createIcons(); }
-function toast(message) { const el = document.getElementById("toast"); el.textContent = message; el.classList.add("show"); clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.remove("show"), 2500); }
+function toast(message) { const el = document.getElementById("toast"); el.textContent = message; el.classList.add("show"); clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.remove("show"), 2600); }
 
 function normalizedSearch(value) { return String(value || "").toLowerCase().replace(/\s+/g, ""); }
 
@@ -148,24 +148,44 @@ function renderStudentOptions(preferred = "") {
 
 function renderPages() {
   const required = pageCount();
+  const current = student();
+  const row = current ? data.submissions.find(r => r.examName === examName() && r.studentId === current.id) : null;
   document.querySelectorAll(".page-slot").forEach(slot => {
-    const page = Number(slot.dataset.page); const image = slot.querySelector("img");
-    slot.classList.toggle("is-disabled", page > required);
-    slot.classList.toggle("has-image", pending.has(page));
-    image.src = previews.get(page) || "";
+    const page = Number(slot.dataset.page);
+    const disabled = page > required;
+    const p = row?.pages.find(x => x.page === page);
+    const image = slot.querySelector("img");
+    slot.classList.toggle("is-disabled", disabled);
+    slot.classList.toggle("has-image", !!p);
+    if (p) {
+      if (previews.has(p.photoKey)) { image.src = previews.get(p.photoKey); }
+      else {
+        image.removeAttribute("src");
+        getPhoto(p.photoKey).then(blob => { if (!blob) return; const url = URL.createObjectURL(blob); previews.set(p.photoKey, url); const img = slot.querySelector("img"); if (img && img.closest(".page-slot") === slot) img.src = url; }).catch(() => {});
+      }
+    } else { image.removeAttribute("src"); }
   });
-  document.getElementById("saveStudentButton").disabled = !examName() || !student() || [...Array(required)].some((_,i) => !pending.has(i + 1));
+  const hint = document.getElementById("autoSaveHint");
+  if (hint) {
+    const done = !!row && isComplete(row);
+    hint.textContent = done ? `${row.studentName} 已拍齐 ${required} 页 · 点击下一名继续` : "拍照即自动保存，无需点确认";
+    hint.classList.toggle("is-done", !!done);
+  }
+  const shareCurrent = document.getElementById("shareCurrentButton");
+  if (shareCurrent) shareCurrent.disabled = !row || !row.pages.length;
 }
 
 function renderQueue() {
   const rows = examRows().sort((a,b) => a.studentId.localeCompare(b.studentId, "zh-CN", { numeric:true }));
+  const doneCount = rows.filter(isComplete).length;
   const unshared = rows.filter(row => !row.exported);
-  document.getElementById("completedCount").textContent = rows.length;
-  document.getElementById("queueTitle").textContent = rows.length ? `${rows.length} 人 · ${rows.reduce((sum,row) => sum + row.pages.length, 0)} 页` : "尚未采集";
-  document.getElementById("queueList").innerHTML = rows.length ? rows.map(row => `<div class="queue-item"><div><strong>${esc(row.studentId)} · ${esc(row.studentName)}</strong><small>${esc(row.examName)}${row.exported ? " · 已分享" : ""}</small></div><span class="page-badge">${row.pages.length}/${row.pageCount} 页</span><button class="queue-delete" data-delete="${esc(row.id)}" title="删除"><i data-lucide="trash-2"></i></button></div>`).join("") : '<div class="queue-empty">尚未采集答题卡</div>';
+  document.getElementById("completedCount").textContent = doneCount;
+  document.getElementById("queueTitle").textContent = rows.length ? `${rows.length} 人 · ${rows.reduce((sum,row) => sum + row.pages.length, 0)} 页 · 完成 ${doneCount}` : "尚未采集";
+  document.getElementById("queueList").innerHTML = rows.length ? rows.map(row => `<div class="queue-item${isComplete(row) ? " is-done" : ""}"><div><strong>${esc(row.studentId)} · ${esc(row.studentName)}</strong><small>${esc(row.examName)}${row.exported ? " · 已分享" : ""}${isComplete(row) ? " · 已完成" : " · 未拍完"}</small></div><span class="page-badge">${row.pages.length}/${row.pageCount} 页</span><button class="queue-share" data-share="${esc(row.id)}" title="单独分享这名学生（导入扫描王用）"><i data-lucide="share-2"></i></button><button class="queue-delete" data-delete="${esc(row.id)}" title="删除"><i data-lucide="trash-2"></i></button></div>`).join("") : '<div class="queue-empty">尚未采集答题卡</div>';
   document.getElementById("clearQueueButton").disabled = !rows.length;
   document.getElementById("shareButton").disabled = !unshared.length;
   document.querySelector("#shareButton span").textContent = `分享未导出（${unshared.length}人）`;
+  document.querySelectorAll("[data-share]").forEach(button => button.onclick = () => shareStudent(button.dataset.share));
   document.querySelectorAll("[data-delete]").forEach(button => button.onclick = () => { if (confirm("确定删除这名学生的扫描件吗？")) removeSubmission(button.dataset.delete); });
 }
 
@@ -175,11 +195,6 @@ function render() {
   const searching = normalizedSearch(document.getElementById("studentSearch").value);
   document.getElementById("studentName").textContent = current ? `${current.name}${current.className ? ` · ${current.className}` : ""}` : data.roster.length && searching ? "未找到学生" : "请上传花名册";
   renderPages(); renderQueue(); icons();
-}
-
-function clearPending() {
-  previews.forEach(url => URL.revokeObjectURL(url)); previews.clear(); pending.clear();
-  document.getElementById("cameraInput").value = ""; renderPages();
 }
 
 function loadImage(file) {
@@ -198,13 +213,45 @@ async function normalizePhoto(file) {
   return new Promise((resolve,reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("照片压缩失败")), "image/jpeg", .9));
 }
 
+// 拍照即存：照片一进来立刻保存到当前学生名下，无需任何确认
 async function acceptPhoto(file) {
   if (!file) return;
+  const current = student();
+  if (!current) return toast("请先选择学生");
+  const exam = examName();
+  if (!exam) return toast("请先填写考试名称");
   try {
     const blob = await normalizePhoto(file);
-    if (previews.has(activePage)) URL.revokeObjectURL(previews.get(activePage));
-    pending.set(activePage, blob); previews.set(activePage, URL.createObjectURL(blob)); renderPages();
-  } catch (error) { toast(error.message || "照片处理失败"); }
+    const required = pageCount();
+    let row = data.submissions.find(r => r.examName === exam && r.studentId === current.id);
+    if (!row) {
+      row = { id: makeId("submission"), examName: exam, studentId: current.id, studentName: current.name, className: current.className || "", pageCount: required, pages: [], capturedAt: new Date().toISOString(), exported: false };
+      data.submissions.push(row);
+    }
+    row.pageCount = required;
+    row.studentName = current.name;
+    row.className = current.className || "";
+    const photoKey = `${row.id}_page_${activePage}`;
+    await putPhoto(photoKey, blob);
+    const existing = row.pages.find(p => p.page === activePage);
+    const wasExisting = !!existing;
+    if (existing) { if (previews.has(existing.photoKey)) URL.revokeObjectURL(previews.get(existing.photoKey)); previews.delete(existing.photoKey); existing.photoKey = photoKey; }
+    else row.pages.push({ page: activePage, photoKey });
+    data.examName = exam;
+    persist();
+    render();
+    if (isComplete(row)) {
+      if (!wasExisting) {
+        toast(`${current.name} 已保存（${required} 页）· 自动进入下一名`);
+        nextStudent();
+      } else {
+        toast(`${current.name} 第 ${activePage} 页已更新`);
+      }
+    } else {
+      const have = new Set(row.pages.map(p => p.page)).size;
+      toast(`第 ${activePage} 页已保存 · ${current.name} 还需 ${required - have} 页`);
+    }
+  } catch (_) { toast("保存失败，请检查手机剩余空间"); }
 }
 
 function openCamera(page) {
@@ -216,31 +263,17 @@ function openCamera(page) {
 async function removeSubmission(id, shouldRender = true) {
   const index = data.submissions.findIndex(row => row.id === id); if (index < 0) return;
   const [removed] = data.submissions.splice(index, 1);
-  await Promise.all(removed.pages.map(page => deletePhoto(page.photoKey).catch(() => {})));
+  await Promise.all(removed.pages.map(page => { if (previews.has(page.photoKey)) URL.revokeObjectURL(previews.get(page.photoKey)); previews.delete(page.photoKey); return deletePhoto(page.photoKey).catch(() => {}); }));
   persist(); if (shouldRender) render();
 }
 
 function nextStudent() {
   if (!data.roster.length) return;
-  const select = document.getElementById("studentSelect"); const done = new Set(examRows().map(row => row.studentId));
+  const select = document.getElementById("studentSelect"); const done = new Set(examRows().filter(isComplete).map(row => row.studentId));
   const index = data.roster.findIndex(s => s.id === select.value);
   const ordered = [...data.roster.slice(index + 1), ...data.roster.slice(0,index + 1)];
   const next = ordered.find(s => !done.has(s.id)) || ordered[0];
   document.getElementById("studentSearch").value = ""; renderStudentOptions(next.id);
-}
-
-async function saveStudent() {
-  const current = student(); const exam = examName(); const required = pageCount();
-  if (!current || !exam || [...Array(required)].some((_,i) => !pending.has(i + 1))) return;
-  try {
-    const old = data.submissions.find(row => row.examName === exam && row.studentId === current.id);
-    if (old) await removeSubmission(old.id, false);
-    const id = makeId("submission"); const pages = [];
-    for (let page = 1; page <= required; page++) { const photoKey = `${id}_page_${page}`; await putPhoto(photoKey, pending.get(page)); pages.push({ page, photoKey }); }
-    data.examName = exam; data.pageCount = required;
-    data.submissions.push({ id, examName:exam, studentId:current.id, studentName:current.name, className:current.className || "", pageCount:required, pages, capturedAt:new Date().toISOString(), exported:false });
-    persist(); clearPending(); nextStudent(); toast(`${current.id} ${current.name} 已保存`);
-  } catch (_) { toast("保存失败，请检查手机剩余空间"); }
 }
 
 async function shareFiles(batch) {
@@ -262,6 +295,16 @@ function downloadFiles(files) {
   files.forEach((file,index) => setTimeout(() => { const link = document.createElement("a"); link.href = URL.createObjectURL(file); link.download = file.name; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 2000); }, index * 250));
 }
 
+// 单独分享一名学生（导入扫描王等场景用）：不改变“未导出”标记
+async function shareStudent(id) {
+  const row = data.submissions.find(r => r.id === id); if (!row || !row.pages.length) return;
+  try {
+    const files = await shareFiles([row]);
+    if (navigator.share && (!navigator.canShare || navigator.canShare({ files }))) await navigator.share({ title:`${row.studentName} 答题卡`, text:`${row.studentId} ${row.studentName} · ${row.pages.length} 页`, files });
+    else { downloadFiles(files); toast("已开始下载该学生扫描文件"); }
+  } catch (error) { if (error?.name !== "AbortError") toast("分享失败，请重试"); }
+}
+
 async function sharePending() {
   const batch = examRows().filter(row => !row.exported); if (!batch.length) return;
   const button = document.getElementById("shareButton"); button.disabled = true;
@@ -269,9 +312,9 @@ async function sharePending() {
     const files = await shareFiles(batch);
     if (navigator.share && (!navigator.canShare || navigator.canShare({ files }))) await navigator.share({ title:examName(), text:`${examName()} · ${batch.length} 名学生`, files });
     else { downloadFiles(files); toast("已开始下载扫描文件"); }
-    batch.forEach(row => row.exported = true); persist(); render();
+    batch.forEach(row => row.exported = true); persist();
   } catch (error) { if (error?.name !== "AbortError") toast("分享失败，请重试"); }
-  finally { button.disabled = false; }
+  finally { render(); }
 }
 
 async function clearQueue() {
@@ -286,19 +329,23 @@ function networkStatus() {
 
 document.getElementById("rosterButton").onclick = () => document.getElementById("rosterInput").click();
 document.getElementById("rosterInput").onchange = event => importRoster(event.target.files[0]);
-document.getElementById("studentSelect").onchange = () => { clearPending(); render(); };
+document.getElementById("studentSelect").onchange = () => { render(); };
 document.getElementById("studentSearch").oninput = () => {
   const before = document.getElementById("studentSelect").value;
   renderStudentOptions(before);
-  if (document.getElementById("studentSelect").value !== before) clearPending();
 };
 document.getElementById("examName").oninput = event => { data.examName = event.target.value; persist(); render(); };
-document.getElementById("nextStudentButton").onclick = () => { clearPending(); nextStudent(); };
+document.getElementById("nextStudentButton").onclick = () => { nextStudent(); };
 document.querySelectorAll('input[name="pageCount"]').forEach(input => input.onchange = () => { data.pageCount = pageCount(); persist(); renderPages(); });
 document.querySelectorAll(".page-slot").forEach(slot => slot.onclick = () => openCamera(Number(slot.dataset.page)));
 document.getElementById("cameraInput").onchange = event => acceptPhoto(event.target.files[0]);
-document.getElementById("saveStudentButton").onclick = saveStudent;
 document.getElementById("shareButton").onclick = sharePending;
+document.getElementById("shareCurrentButton").onclick = () => {
+  const current = student(); if (!current) return toast("请先选择学生");
+  const row = data.submissions.find(r => r.examName === examName() && r.studentId === current.id);
+  if (!row) return toast("这名学生还没有照片");
+  shareStudent(row.id);
+};
 document.getElementById("clearQueueButton").onclick = clearQueue;
 document.getElementById("resetExportButton").onclick = () => { examRows().forEach(row => row.exported = false); persist(); render(); toast("已重置分享状态"); };
 window.addEventListener("online", networkStatus); window.addEventListener("offline", networkStatus);
